@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>τ-ω Radiative Transfer model</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #e9f2f1;
+    --bg2: #ffffff;
+    --bg3: #dcebe9;
+    --border: rgba(15,107,99,0.14);
+    --border2: rgba(15,107,99,0.26);
+    --text: #1c2b2a;
+    --text2: #5b7370;
+    --text3: #8aa19e;
+    --green: #0f8077;
+    --green-bg: rgba(15,128,116,0.10);
+    --blue: #3f6fae;
+    --blue-bg: rgba(63,111,174,0.10);
+    --amber: #b5651d;
+    --amber-bg: rgba(181,101,29,0.10);
+    --olive: #5f8f3e;
+    --olive-bg: rgba(95,143,62,0.10);
+    --red: #c1463f;
+    --red-bg: rgba(193,70,63,0.10);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 4rem;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.4rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-titles { display: flex; flex-direction: column; gap: 2px; }
+  .header-titles .title-row { display: flex; align-items: baseline; gap: 1.25rem; }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 19px;
+    font-weight: 500;
+    color: var(--green);
+    letter-spacing: .01em;
+  }
+
+  header span.sub {
+    font-size: 13px;
+    color: var(--text3);
+    font-family: var(--mono);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg3);
+    border-radius: 9px;
+    padding: 4px;
+  }
+
+  .tab-btn {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .03em;
+    color: var(--text2);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: .55rem 1.15rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+
+  .tab-btn.active {
+    background: var(--bg2);
+    color: var(--green);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .container {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: .85rem 1.35rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text2);
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .panel-body { padding: 1.4rem; }
+
+  .group {
+    margin-bottom: 1.4rem;
+    padding: 1.1rem;
+    border-radius: 10px;
+  }
+  .group:last-child { margin-bottom: 0; }
+
+  .group.tint-blue   { background: var(--blue-bg); }
+  .group.tint-amber  { background: var(--amber-bg); }
+  .group.tint-olive  { background: var(--olive-bg); }
+  .group.tint-plain  { background: var(--bg3); }
+
+  .group-label {
+    font-size: 11.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--text2);
+    margin-bottom: .85rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border2);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .group-label .group-note {
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-style: italic;
+    color: var(--text3);
+    font-weight: 400;
+    font-family: var(--sans);
+  }
+
+  .field { margin-bottom: 1rem; }
+  .field:last-child { margin-bottom: 0; }
+
+  .field-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+
+  .field-top label {
+    font-size: 14px;
+    color: var(--text2);
+  }
+
+  .field-top .fval {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: var(--green);
+    border: 2px solid var(--bg2);
+    box-shadow: 0 0 0 1px var(--border2);
+    cursor: pointer;
+    transition: transform .15s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+  input[type=range].blue::-webkit-slider-thumb { background: var(--blue); }
+  input[type=range].amber::-webkit-slider-thumb { background: var(--amber); }
+  input[type=range].olive::-webkit-slider-thumb { background: var(--olive); }
+
+  .results-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .big-outputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+
+  .big-out {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.6rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .big-out::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .big-out.green::before { background: var(--green); }
+  .big-out.olive::before { background: var(--olive); }
+  .big-out.blue::before { background: var(--blue); }
+  .big-out.amber::before { background: var(--amber); }
+
+  .big-out-label {
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text3);
+    margin-bottom: .6rem;
+  }
+
+  .big-out-val {
+    font-family: var(--mono);
+    font-size: 42px;
+    font-weight: 500;
+    line-height: 1;
+    margin-bottom: .35rem;
+  }
+
+  .big-out.green .big-out-val { color: var(--green); }
+  .big-out.olive .big-out-val { color: var(--olive); }
+  .big-out.blue .big-out-val { color: var(--blue); }
+  .big-out.amber .big-out-val { color: var(--amber); }
+
+  .big-out-unit {
+    font-size: 12.5px;
+    color: var(--text3);
+    margin-bottom: 1.1rem;
+  }
+
+  .progress-track {
+    height: 5px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: .6rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .4s cubic-bezier(.4,0,.2,1);
+  }
+
+  .progress-fill.green { background: var(--green); }
+  .progress-fill.olive { background: var(--olive); }
+
+  .class-tag {
+    font-size: 13px;
+    color: var(--text2);
+    font-style: italic;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .9rem;
+  }
+
+  .metric {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+  }
+
+  .metric-label {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text3);
+    margin-bottom: .55rem;
+  }
+
+  .metric-val {
+    font-family: var(--mono);
+    font-size: 21px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .metric-unit {
+    font-size: 11.5px;
+    color: var(--text3);
+    margin-top: 3px;
+  }
+
+  .status-bar {
+    border-radius: 10px;
+    padding: .9rem 1.25rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: var(--mono);
+    border: 1px solid transparent;
+    transition: all .3s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .status-bar.ok { background: var(--green-bg); border-color: rgba(15,128,116,0.28); color: var(--green); }
+  .status-bar.warn { background: var(--amber-bg); border-color: rgba(181,101,29,0.28); color: var(--amber); }
+  .status-bar.err { background: var(--red-bg); border-color: rgba(193,70,63,0.28); color: var(--red); }
+
+  .eq-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .eq-panel-header {
+    padding: .8rem 1.35rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--text3);
+    font-family: var(--mono);
+  }
+
+  .eq-body {
+    padding: 1.2rem 1.35rem;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 2.1;
+  }
+
+  .eq-body .hl { color: var(--green); }
+  .eq-body .hlb { color: var(--blue); }
+  .eq-body .hla { color: var(--amber); }
+
+  .footer {
+    margin-top: 1rem;
+    font-size: 12px;
+    color: var(--text3);
+    font-family: var(--mono);
+    line-height: 1.9;
+    padding-top: .85rem;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Calibration view */
+  .cal-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+  }
+
+  .param-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 96px;
+    align-items: center;
+    gap: 12px;
+    padding: .7rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .param-row:last-child { border-bottom: none; }
+
+  .param-row input[type=checkbox] {
+    width: 17px; height: 17px;
+    accent-color: var(--green);
+    cursor: pointer;
+  }
+
+  .param-row .param-name {
+    font-size: 14.5px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .param-row .param-bounds {
+    font-size: 11.5px;
+    color: var(--text3);
+    font-family: var(--mono);
+    display: block;
+    margin-top: 2px;
+  }
+
+  .param-row input[type=number] {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: .4rem .55rem;
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    background: var(--bg2);
+    color: var(--text);
+  }
+
+  .num-input {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: .4rem .55rem;
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    background: var(--bg2);
+    color: var(--text);
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-family: var(--mono);
+    min-width: 760px;
+  }
+
+  table.data-table th {
+    background: var(--bg3);
+    text-align: left;
+    padding: .65rem .75rem;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text2);
+    font-weight: 500;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+
+  table.data-table td {
+    padding: .5rem .6rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  table.data-table tr:last-child td { border-bottom: none; }
+
+  table.data-table input[type=number] {
+    width: 86px;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: .35rem .45rem;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--bg2);
+    color: var(--text);
+  }
+
+  .row-remove {
+    background: var(--red-bg);
+    color: var(--red);
+    border: 1px solid rgba(193,70,63,0.28);
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    font-family: var(--mono);
+  }
+
+  .row-add {
+    margin-top: .85rem;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid rgba(15,128,116,0.28);
+    border-radius: 7px;
+    padding: .6rem 1.15rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: var(--mono);
+    cursor: pointer;
+  }
+
+  .row-add.alt {
+    background: var(--blue-bg);
+    color: var(--blue);
+    border-color: rgba(63,111,174,0.28);
+  }
+
+  .btn-row { display: flex; gap: .85rem; margin-top: 1.15rem; flex-wrap: wrap; align-items: center; }
+
+  .btn-primary, .btn-secondary {
+    border: none;
+    border-radius: 9px;
+    padding: .75rem 1.4rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); }
+  .btn-primary:hover, .btn-secondary:hover { opacity: .85; }
+  .btn-primary:disabled, .btn-secondary:disabled { opacity: .4; cursor: not-allowed; }
+
+  .cal-results { display: none; flex-direction: column; gap: 1.25rem; }
+  .cal-results.show { display: flex; }
+
+  /* Retrieval mode selector */
+  .mode-selector {
+    display: flex;
+    gap: 6px;
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 5px;
+    margin-bottom: 1.1rem;
+  }
+  .mode-btn {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text2);
+    background: transparent;
+    border: none;
+    border-radius: 7px;
+    padding: .6rem .5rem;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.3;
+    transition: all .15s;
+  }
+  .mode-btn:hover { color: var(--text); }
+  .mode-btn.active { background: var(--bg2); color: var(--green); box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
+  .mode-btn span.mode-icon { display: block; font-size: 17px; margin-bottom: 2px; }
+  .fixed-input-row {
+    display: none;
+    margin-top: .7rem;
+    padding: .75rem 1rem;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    align-items: center;
+    gap: 12px;
+  }
+  .fixed-input-row.show { display: flex; }
+  .fixed-input-row label { font-size: 13.5px; color: var(--text2); white-space: nowrap; }
+  .fixed-input-row input[type=number] {
+    width: 130px;
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: .4rem .6rem;
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .fixed-badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--amber);
+    background: var(--amber-bg);
+    border: 1px solid rgba(181,101,29,0.22);
+    border-radius: 5px;
+    padding: 2px 8px;
+    margin-left: auto;
+  }
+
+  #cal-import-status {
+    font-size: 12.5px;
+    font-family: var(--mono);
+    margin-top: .6rem;
+    color: var(--text2);
+  }
+  #cal-import-status.err { color: var(--red); }
+  #cal-import-status.ok { color: var(--green); }
+
+  @media (max-width: 900px) {
+    .layout, .cal-layout { grid-template-columns: 1fr; }
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+    .big-outputs { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-titles">
+    <div class="title-row">
+      <h1>τ-ω Radiative Transfer model</h1>
+    </div>
+    <span class="sub">L-band 1.4 GHz · Dual polarization · Developed by UCD Advanced Irrigation Lab</span>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-view="forward">Forward / Inversion</button>
+    <button class="tab-btn" data-view="calibration">Calibration</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ===================== FORWARD / INVERSION VIEW ===================== -->
+  <div class="view active" id="view-forward">
+    <div class="layout">
+
+      <!-- LEFT: Inputs -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="dot" style="background:#3f6fae"></div>
+          Model Inputs
+        </div>
+        <div class="panel-body">
+
+          <div class="group tint-blue">
+            <div class="group-label">Brightness Temperatures</div>
+            <div class="field">
+              <div class="field-top">
+                <label>Tb vertical</label>
+                <span class="fval" id="tbv-v">210.0 K</span>
+              </div>
+              <input type="range" class="blue" id="tbv" min="100" max="310" step="0.5" value="210">
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>Tb horizontal</label>
+                <span class="fval" id="tbh-v">170.0 K</span>
+              </div>
+              <input type="range" class="blue" id="tbh" min="100" max="310" step="0.5" value="170">
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>Incidence angle θ</label>
+                <span class="fval" id="theta-v">40 °</span>
+              </div>
+              <input type="range" class="blue" id="theta" min="0" max="60" step="1" value="40">
+            </div>
+          </div>
+
+          <div class="group tint-plain">
+            <div class="group-label">Physical Temperatures</div>
+            <div class="field">
+              <div class="field-top">
+                <label>Soil temperature Ts</label>
+                <span class="fval" id="ts-v">27.0 °C</span>
+              </div>
+              <input type="range" id="ts" min="-10" max="70" step="0.5" value="27">
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>Canopy temperature Tc</label>
+                <span class="fval" id="tc-v">22.0 °C</span>
+              </div>
+              <input type="range" id="tc" min="-10" max="70" step="0.5" value="22">
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>Sky downwelling Tsky</label>
+                <span class="fval" id="tsky-v">5.0 K</span>
+              </div>
+              <input type="range" id="tsky" min="3" max="30" step="0.5" value="5">
+            </div>
+          </div>
+
+          <div class="group tint-amber">
+            <div class="group-label">
+              Calibratable Parameters
+              <span class="group-note">fit these in the Calibration tab</span>
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>RMS height h_rms</label>
+                <span class="fval" id="hrms-v">0.010 m</span>
+              </div>
+              <input type="range" class="amber" id="hrms" min="0" max="0.05" step="0.001" value="0.01">
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>Roughness exponent n</label>
+                <span class="fval" id="nexp-v">1.00</span>
+              </div>
+              <input type="range" class="amber" id="nexp" min="0" max="2" step="0.05" value="1">
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>Q cross-pol mixing</label>
+                <span class="fval" id="qpar-v">0.100</span>
+              </div>
+              <input type="range" class="amber" id="qpar" min="0" max="0.2" step="0.005" value="0.1">
+            </div>
+            <div class="field">
+              <div class="field-top">
+                <label>Single-scatter albedo ω</label>
+                <span class="fval" id="omega-v">0.050</span>
+              </div>
+              <input type="range" class="amber" id="omega" min="0" max="0.2" step="0.005" value="0.05">
+            </div>
+          </div>
+
+          <div class="group tint-olive">
+            <div class="group-label">Retrieval Mode</div>
+
+            <div class="mode-selector">
+              <button class="mode-btn" data-mode="smc" id="mode-smc">
+                <span class="mode-icon">💧</span>SMC only<br><small style="font-size:10px;opacity:.7">(τ fixed)</small>
+              </button>
+              <button class="mode-btn active" data-mode="both" id="mode-both">
+                <span class="mode-icon">⇅</span>Simultaneous<br><small style="font-size:10px;opacity:.7">(SMC + τ)</small>
+              </button>
+              <button class="mode-btn" data-mode="tau" id="mode-tau">
+                <span class="mode-icon">🌿</span>τ only<br><small style="font-size:10px;opacity:.7">(SMC fixed)</small>
+              </button>
+            </div>
+
+            <!-- Fixed τ input (shown in SMC-only mode) -->
+            <div class="fixed-input-row" id="fixed-tau-row">
+              <label>Fixed τ (known)</label>
+              <input type="number" id="fixed-tau" value="0.30" min="0" max="3" step="0.01">
+              <span class="fixed-badge">held constant</span>
+            </div>
+
+            <!-- Fixed SMC input (shown in τ-only mode) -->
+            <div class="fixed-input-row" id="fixed-smc-row">
+              <label>Fixed SMC (m³/m³)</label>
+              <input type="number" id="fixed-smc" value="0.25" min="0.005" max="0.60" step="0.005">
+              <span class="fixed-badge">held constant</span>
+            </div>
+
+            <div class="group-label" style="margin-top:.9rem">Initial Guesses</div>
+            <div class="field" id="field-tau0">
+              <div class="field-top">
+                <label>τ initial guess</label>
+                <span class="fval" id="tau0-v">0.50</span>
+              </div>
+              <input type="range" class="olive" id="tau0" min="0" max="2" step="0.01" value="0.5">
+            </div>
+            <div class="field" id="field-smc0">
+              <div class="field-top">
+                <label>SMC initial guess</label>
+                <span class="fval" id="smc0-v">0.25 m³/m³</span>
+              </div>
+              <input type="range" class="olive" id="smc0" min="0.01" max="0.55" step="0.01" value="0.25">
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT: Results -->
+      <div class="results-panel">
+
+        <div class="big-outputs">
+          <div class="big-out green">
+            <div class="big-out-label">Soil moisture content</div>
+            <div class="big-out-val" id="smc-val">—</div>
+            <div class="big-out-unit">m³ m⁻³ volumetric</div>
+            <div class="progress-track">
+              <div class="progress-fill green" id="smc-bar" style="width:0%"></div>
+            </div>
+            <div class="class-tag" id="smc-class">—</div>
+          </div>
+          <div class="big-out olive">
+            <div class="big-out-label">Vegetation optical depth τ</div>
+            <div class="big-out-val" id="tau-val">—</div>
+            <div class="big-out-unit">nadir, dimensionless</div>
+            <div class="progress-track">
+              <div class="progress-fill olive" id="tau-bar" style="width:0%"></div>
+            </div>
+            <div class="class-tag" id="tau-class">—</div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-label">Emissivity eV</div>
+            <div class="metric-val" id="ev-val">—</div>
+            <div class="metric-unit">vertical pol.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Emissivity eH</div>
+            <div class="metric-val" id="eh-val">—</div>
+            <div class="metric-unit">horizontal pol.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Transmissivity γ</div>
+            <div class="metric-val" id="gamma-val">—</div>
+            <div class="metric-unit">at θ, dimensionless</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Dielectric ε'</div>
+            <div class="metric-val" id="eps-val">—</div>
+            <div class="metric-unit">soil permittivity</div>
+          </div>
+        </div>
+
+        <div class="metrics-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="metric">
+            <div class="metric-label">Simulated TbV</div>
+            <div class="metric-val" id="stbv-val">—</div>
+            <div class="metric-unit">K</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Simulated TbH</div>
+            <div class="metric-val" id="stbh-val">—</div>
+            <div class="metric-unit">K</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">ΔTbV</div>
+            <div class="metric-val" id="dtbv-val">—</div>
+            <div class="metric-unit">K residual</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">RMSE</div>
+            <div class="metric-val" id="rmse-val">—</div>
+            <div class="metric-unit">K total misfit</div>
+          </div>
+        </div>
+
+        <div class="status-bar ok" id="status-bar">
+          <span>●</span><span id="status-text">Initializing…</span>
+        </div>
+
+        <div class="eq-panel">
+          <div class="eq-panel-header">Forward model equations</div>
+          <div class="eq-body">
+            <span class="hl">Tb_p</span> = Tc·(1−ω)·(1−<span class="hl">γ_p</span>)·(1+<span class="hlb">r_p</span>·<span class="hl">γ_p</span>) + Ts·(1−<span class="hlb">r_p</span>)·<span class="hl">γ_p</span> + Tsky·<span class="hlb">r_p</span>·<span class="hl">γ_p</span>²<br>
+            <span class="hl">γ_p</span> = exp(−<span class="hla">τ</span>/cosθ)&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<span class="hlb">e_p</span> = 1 − <span class="hlb">r_p</span>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;p ∈ {V, H}<br>
+            <span class="hlb">r_p_rough</span> = [(1−Q)·r_p_smooth + Q·r_q_smooth]·exp(−h_r·cosⁿθ)<br>
+            h_r = (2k·h_rms)²&nbsp;&nbsp;&nbsp;k = 2πf/c&nbsp;&nbsp;&nbsp;f = 1.4 GHz<br>
+            ε(SMC, Ts) via <span class="hla">Wang &amp; Schmugge (1980)</span> → Fresnel → r_V, r_H<br>
+            Inversion: <span class="hla">Nelder-Mead simplex</span> minimising (TbV_obs−TbV_sim)² + (TbH_obs−TbH_sim)²
+          </div>
+        </div>
+
+        <div class="footer">
+          Model refs: Mo &amp; Schmugge (1987) · Wigneron et al. (2007) · Wang &amp; Schmugge (1980) · Wang (1983) Q-h roughness<br>
+          Valid range: SMC 0.005–0.60 m³/m³ · τ 0–3 · θ 0–60° · frequency L-band 1.4 GHz
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CALIBRATION VIEW ===================== -->
+  <div class="view" id="view-calibration">
+
+    <div class="cal-layout">
+
+      <!-- Parameters to calibrate -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="dot" style="background:#b5651d"></div>
+          Calibratable Parameters
+        </div>
+        <div class="panel-body">
+          <div class="param-row">
+            <input type="checkbox" id="cal-chk-hrms" checked>
+            <div>
+              <div class="param-name">RMS height h_rms</div>
+              <span class="param-bounds">bounds 0 – 0.05 m</span>
+            </div>
+            <input type="number" class="num-input" id="cal-val-hrms" value="0.010" step="0.001" min="0" max="0.05">
+          </div>
+          <div class="param-row">
+            <input type="checkbox" id="cal-chk-nexp" checked>
+            <div>
+              <div class="param-name">Roughness exponent n</div>
+              <span class="param-bounds">bounds 0 – 2</span>
+            </div>
+            <input type="number" class="num-input" id="cal-val-nexp" value="1.00" step="0.05" min="0" max="2">
+          </div>
+          <div class="param-row">
+            <input type="checkbox" id="cal-chk-Q">
+            <div>
+              <div class="param-name">Q cross-pol mixing</div>
+              <span class="param-bounds">bounds 0 – 0.2</span>
+            </div>
+            <input type="number" class="num-input" id="cal-val-Q" value="0.100" step="0.005" min="0" max="0.2">
+          </div>
+          <div class="param-row">
+            <input type="checkbox" id="cal-chk-omega" checked>
+            <div>
+              <div class="param-name">Single-scatter albedo ω</div>
+              <span class="param-bounds">bounds 0 – 0.2</span>
+            </div>
+            <input type="number" class="num-input" id="cal-val-omega" value="0.050" step="0.005" min="0" max="0.2">
+          </div>
+
+          <div class="group tint-plain" style="margin-top:1.4rem">
+            <div class="group-label">Shared Conditions</div>
+            <div class="field">
+              <div class="field-top">
+                <label>Sky downwelling Tsky</label>
+              </div>
+              <input type="number" class="num-input" id="cal-tsky" value="5.0" step="0.5" min="3" max="30">
+            </div>
+          </div>
+
+          <div class="footer">
+            Checked parameters are fitted via Nelder-Mead.<br>
+            Unchecked parameters stay fixed at the value shown.<br>
+            τ is solved independently per row (golden-section), since it varies with vegetation state.
+          </div>
+        </div>
+      </div>
+
+      <!-- Observation data table -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="dot" style="background:#0f8077"></div>
+          Observation Data (measured)
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap">
+            <table class="data-table" id="cal-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tb V (K)</th>
+                  <th>Tb H (K)</th>
+                  <th>Ts (°C)</th>
+                  <th>Tc (°C)</th>
+                  <th>θ (°)</th>
+                  <th>SMC meas (m³/m³)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cal-tbody"></tbody>
+            </table>
+          </div>
+
+          <div class="btn-row">
+            <button class="row-add" id="cal-add-row">+ Add observation</button>
+            <button class="row-add alt" id="cal-import-btn">⇪ Import from Excel</button>
+            <input type="file" id="cal-import-file" accept=".xlsx,.xls,.csv" style="display:none">
+          </div>
+          <div id="cal-import-status"></div>
+
+          <div class="btn-row">
+            <button class="btn-primary" id="cal-run">Run calibration</button>
+            <button class="btn-secondary" id="cal-apply" disabled>Apply to forward model</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calibration results -->
+    <div class="cal-results" id="cal-results">
+
+      <div class="big-outputs" style="grid-template-columns:repeat(4,1fr)">
+        <div class="big-out amber">
+          <div class="big-out-label">h_rms (m)</div>
+          <div class="big-out-val" id="cal-out-hrms" style="font-size:28px">—</div>
+          <div class="big-out-unit">RMS surface height</div>
+        </div>
+        <div class="big-out amber">
+          <div class="big-out-label">n</div>
+          <div class="big-out-val" id="cal-out-nexp" style="font-size:28px">—</div>
+          <div class="big-out-unit">roughness exponent</div>
+        </div>
+        <div class="big-out amber">
+          <div class="big-out-label">Q</div>
+          <div class="big-out-val" id="cal-out-Q" style="font-size:28px">—</div>
+          <div class="big-out-unit">cross-pol mixing</div>
+        </div>
+        <div class="big-out amber">
+          <div class="big-out-label">ω</div>
+          <div class="big-out-val" id="cal-out-omega" style="font-size:28px">—</div>
+          <div class="big-out-unit">single-scatter albedo</div>
+        </div>
+      </div>
+
+      <div class="status-bar ok" id="cal-status-bar">
+        <span>●</span><span id="cal-status-text">—</span>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="dot" style="background:#3f6fae"></div>
+          Per-Observation Fit
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap">
+            <table class="data-table" id="cal-results-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>SMC meas</th>
+                  <th>τ fitted</th>
+                  <th>TbV obs</th>
+                  <th>TbV sim</th>
+                  <th>ΔTbV</th>
+                  <th>TbH obs</th>
+                  <th>TbH sim</th>
+                  <th>ΔTbH</th>
+                </tr>
+              </thead>
+              <tbody id="cal-results-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        Calibration fixes SMC to the measured value per observation and fits site-level h_rms, n, Q, ω<br>
+        (whichever are checked) plus an independent τ per observation, minimizing total ΣΔTb² across all rows.
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const DEG = Math.PI / 180;
+
+/* ---------- Core τ-ω forward model (shared by both views) ---------- */
+
+function dielectric(smc, Ts_K) {
+  const T = Ts_K - 273.15;
+  const fw = 80.4 - 0.62 * T;
+  const fc = 0.49;
+  const eps_s_r = 4.7;
+  const frac = Math.min(smc, fc) / fc;
+  const eps_r = eps_s_r * (1 - frac) + fw * frac;
+  const eps_i = Math.max(fw * frac * 0.35, 0.01);
+  return { r: Math.max(eps_r, 1.5), i: eps_i };
+}
+
+function fresnel(eps_r, eps_i, theta_rad) {
+  const ct = Math.cos(theta_rad);
+  const st2 = Math.pow(Math.sin(theta_rad), 2);
+  const Dre = eps_r - st2;
+  const D = Math.sqrt(Dre * Dre + eps_i * eps_i);
+  const sqRe = Math.sqrt((D + Dre) / 2);
+  const sqIm = Math.sqrt((D - Dre) / 2);
+  const numV_r = eps_r * ct - sqRe, numV_i = -eps_i * ct - sqIm;
+  const denV_r = eps_r * ct + sqRe, denV_i =  eps_i * ct + sqIm;
+  const rV = (numV_r*numV_r + numV_i*numV_i) / (denV_r*denV_r + denV_i*denV_i);
+  const numH_r = ct - sqRe, numH_i = -sqIm;
+  const denH_r = ct + sqRe, denH_i =  sqIm;
+  const rH = (numH_r*numH_r + numH_i*numH_i) / (denH_r*denH_r + denH_i*denH_i);
+  return { rV: Math.min(rV, 1), rH: Math.min(rH, 1) };
+}
+
+function roughRefl(rV_s, rH_s, Q, hrms, nexp, theta_rad) {
+  const k = 2 * Math.PI * 1.4e9 / 3e8;
+  const hr = Math.pow(2 * k * hrms, 2) * Math.pow(Math.cos(theta_rad), nexp);
+  const ef = Math.exp(-hr);
+  return {
+    rV: Math.min(Math.max(((1 - Q) * rV_s + Q * rH_s) * ef, 0), 1),
+    rH: Math.min(Math.max(((1 - Q) * rH_s + Q * rV_s) * ef, 0), 1)
+  };
+}
+
+function forward(smc, tau, omega, Ts, Tc, Tsky, theta_deg, hrms, nexp, Q) {
+  const th = theta_deg * DEG;
+  const ct = Math.cos(th);
+  const eps = dielectric(smc, Ts);
+  const fr = fresnel(eps.r, eps.i, th);
+  const rr = roughRefl(fr.rV, fr.rH, Q, hrms, nexp, th);
+  const gamma = Math.exp(-tau / ct);
+  const eV = 1 - rr.rV, eH = 1 - rr.rH;
+  const canopy = (1 - omega) * (1 - gamma);
+  const TbV = Tc * canopy * (1 + rr.rV * gamma) + Ts * eV * gamma + Tsky * rr.rV * gamma * gamma;
+  const TbH = Tc * canopy * (1 + rr.rH * gamma) + Ts * eH * gamma + Tsky * rr.rH * gamma * gamma;
+  return { TbV, TbH, eV, eH, gamma, eps };
+}
+
+function f(v, d) { return isNaN(v) ? '—' : v.toFixed(d); }
+
+/* ---------- Tab switching ---------- */
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  });
+});
+
+/* =====================================================================
+   FORWARD / INVERSION VIEW
+===================================================================== */
+
+/* ---- Retrieval mode state ---- */
+let retrievalMode = 'both'; // 'smc' | 'both' | 'tau'
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    retrievalMode = btn.dataset.mode;
+    // Show/hide fixed value inputs and initial guess sliders
+    document.getElementById('fixed-tau-row').classList.toggle('show', retrievalMode === 'smc');
+    document.getElementById('fixed-smc-row').classList.toggle('show', retrievalMode === 'tau');
+    document.getElementById('field-tau0').style.display = retrievalMode === 'tau' ? 'none' : '';
+    document.getElementById('field-smc0').style.display = retrievalMode === 'smc' ? 'none' : '';
+    update();
+  });
+});
+
+/* ---- Inversion functions by mode ---- */
+
+// Mode: BOTH — 2D Nelder-Mead over (SMC, τ)
+function invertBoth(TbV_obs, TbH_obs, omega, Ts, Tc, Tsky, theta_deg, hrms, nexp, Q, smc0, tau0) {
+  const cost = ([s, t]) => {
+    if (s < 0.005 || s > 0.62 || t < 0 || t > 3.5) return 1e6;
+    const fr = forward(s, t, omega, Ts, Tc, Tsky, theta_deg, hrms, nexp, Q);
+    return Math.pow(fr.TbV - TbV_obs, 2) + Math.pow(fr.TbH - TbH_obs, 2);
+  };
+  let sx = [[smc0, tau0], [smc0 + 0.06, tau0], [smc0, tau0 + 0.12]];
+  for (let i = 0; i < 700; i++) {
+    sx.sort((a, b) => cost(a) - cost(b));
+    const [b, m, w] = sx;
+    const c = [(b[0] + m[0]) / 2, (b[1] + m[1]) / 2];
+    let r = [2*c[0]-w[0], 2*c[1]-w[1]];
+    if (cost(r) < cost(b)) {
+      let e = [3*c[0]-2*w[0], 3*c[1]-2*w[1]];
+      sx[2] = cost(e) < cost(r) ? e : r;
+    } else if (cost(r) < cost(m)) {
+      sx[2] = r;
+    } else {
+      let con = [1.5*c[0]-0.5*w[0], 1.5*c[1]-0.5*w[1]];
+      if (cost(con) < cost(w)) sx[2] = con;
+      else sx = sx.map(p => [(p[0]+b[0])/2, (p[1]+b[1])/2]);
+    }
+  }
+  sx.sort((a, b) => cost(a) - cost(b));
+  return { smc: sx[0][0], tau: sx[0][1], residual: Math.sqrt(cost(sx[0]) / 2) };
+}
+
+// Mode: SMC only — 1D bisection over SMC with τ held fixed
+function invertSMC(TbV_obs, TbH_obs, omega, Ts, Tc, Tsky, theta_deg, hrms, nexp, Q, tauFixed, smc0) {
+  // Use average of V and H Tb for a single-pol combined cost
+  const costAt = (s) => {
+    if (s < 0.005 || s > 0.62) return 1e6;
+    const fr = forward(s, tauFixed, omega, Ts, Tc, Tsky, theta_deg, hrms, nexp, Q);
+    return Math.pow(fr.TbV - TbV_obs, 2) + Math.pow(fr.TbH - TbH_obs, 2);
+  };
+  // Coarse grid then golden-section refinement
+  let bestS = smc0, bestC = Infinity;
+  for (let s = 0.005; s <= 0.61; s += 0.005) {
+    const c = costAt(s);
+    if (c < bestC) { bestC = c; bestS = s; }
+  }
+  let lo = Math.max(0.005, bestS - 0.02), hi = Math.min(0.62, bestS + 0.02);
+  const gr = (Math.sqrt(5) - 1) / 2;
+  let c1 = hi - gr*(hi-lo), c2 = lo + gr*(hi-lo);
+  let f1 = costAt(c1), f2 = costAt(c2);
+  for (let i = 0; i < 60; i++) {
+    if (f1 < f2) { hi = c2; c2 = c1; f2 = f1; c1 = hi - gr*(hi-lo); f1 = costAt(c1); }
+    else { lo = c1; c1 = c2; f1 = f2; c2 = lo + gr*(hi-lo); f2 = costAt(c2); }
+  }
+  const smc = (lo + hi) / 2;
+  return { smc, tau: tauFixed, residual: Math.sqrt(costAt(smc) / 2) };
+}
+
+// Mode: τ only — 1D golden-section over τ with SMC held fixed
+function invertTau(TbV_obs, TbH_obs, omega, Ts, Tc, Tsky, theta_deg, hrms, nexp, Q, smcFixed, tau0) {
+  const costAt = (t) => {
+    if (t < 0 || t > 3.5) return 1e6;
+    const fr = forward(smcFixed, t, omega, Ts, Tc, Tsky, theta_deg, hrms, nexp, Q);
+    return Math.pow(fr.TbV - TbV_obs, 2) + Math.pow(fr.TbH - TbH_obs, 2);
+  };
+  let bestT = tau0, bestC = Infinity;
+  for (let t = 0; t <= 3.001; t += 0.02) {
+    const c = costAt(t);
+    if (c < bestC) { bestC = c; bestT = t; }
+  }
+  let lo = Math.max(0, bestT - 0.04), hi = Math.min(3.5, bestT + 0.04);
+  const gr = (Math.sqrt(5) - 1) / 2;
+  let c1 = hi - gr*(hi-lo), c2 = lo + gr*(hi-lo);
+  let f1 = costAt(c1), f2 = costAt(c2);
+  for (let i = 0; i < 60; i++) {
+    if (f1 < f2) { hi = c2; c2 = c1; f2 = f1; c1 = hi - gr*(hi-lo); f1 = costAt(c1); }
+    else { lo = c1; c1 = c2; f1 = f2; c2 = lo + gr*(hi-lo); f2 = costAt(c2); }
+  }
+  const tau = (lo + hi) / 2;
+  return { smc: smcFixed, tau, residual: Math.sqrt(costAt(tau) / 2) };
+}
+
+function update() {
+  const TbV = +document.getElementById('tbv').value;
+  const TbH = +document.getElementById('tbh').value;
+  const Ts   = +document.getElementById('ts').value;
+  const Tc   = +document.getElementById('tc').value;
+  const Tsky = +document.getElementById('tsky').value;
+  const theta= +document.getElementById('theta').value;
+  const hrms = +document.getElementById('hrms').value;
+  const nexp = +document.getElementById('nexp').value;
+  const Q    = +document.getElementById('qpar').value;
+  const omega= +document.getElementById('omega').value;
+  const tau0 = +document.getElementById('tau0').value;
+  const smc0 = +document.getElementById('smc0').value;
+  const fixedTau = +document.getElementById('fixed-tau').value;
+  const fixedSmc = +document.getElementById('fixed-smc').value;
+
+  document.getElementById('tbv-v').textContent   = f(TbV, 1) + ' K';
+  document.getElementById('tbh-v').textContent   = f(TbH, 1) + ' K';
+  document.getElementById('ts-v').textContent    = f(Ts, 1) + ' °C';
+  document.getElementById('tc-v').textContent    = f(Tc, 1) + ' °C';
+  document.getElementById('tsky-v').textContent  = f(Tsky, 1) + ' K';
+  document.getElementById('theta-v').textContent = theta + ' °';
+  document.getElementById('hrms-v').textContent  = f(hrms, 3) + ' m';
+  document.getElementById('nexp-v').textContent  = f(nexp, 2);
+  document.getElementById('qpar-v').textContent  = f(Q, 3);
+  document.getElementById('omega-v').textContent = f(omega, 3);
+  document.getElementById('tau0-v').textContent  = f(tau0, 2);
+  document.getElementById('smc0-v').textContent  = f(smc0, 2) + ' m³/m³';
+
+  const TsK = Ts + 273.15, TcK = Tc + 273.15;
+  let res;
+  if (retrievalMode === 'smc') {
+    res = invertSMC(TbV, TbH, omega, TsK, TcK, Tsky, theta, hrms, nexp, Q, fixedTau, smc0);
+  } else if (retrievalMode === 'tau') {
+    res = invertTau(TbV, TbH, omega, TsK, TcK, Tsky, theta, hrms, nexp, Q, fixedSmc, tau0);
+  } else {
+    res = invertBoth(TbV, TbH, omega, TsK, TcK, Tsky, theta, hrms, nexp, Q, smc0, tau0);
+  }
+
+  const fwd = forward(res.smc, res.tau, omega, TsK, TcK, Tsky, theta, hrms, nexp, Q);
+
+  document.getElementById('smc-val').textContent   = f(res.smc, 3);
+  document.getElementById('tau-val').textContent   = f(res.tau, 3);
+  document.getElementById('ev-val').textContent    = f(fwd.eV, 3);
+  document.getElementById('eh-val').textContent    = f(fwd.eH, 3);
+  document.getElementById('gamma-val').textContent = f(fwd.gamma, 3);
+  document.getElementById('eps-val').textContent   = f(fwd.eps.r, 2);
+  document.getElementById('stbv-val').textContent  = f(fwd.TbV, 1);
+  document.getElementById('stbh-val').textContent  = f(fwd.TbH, 1);
+  document.getElementById('dtbv-val').textContent  = f(fwd.TbV - TbV, 2);
+  document.getElementById('rmse-val').textContent  = f(res.residual, 2);
+
+  document.getElementById('smc-bar').style.width = Math.min(res.smc / 0.55 * 100, 100) + '%';
+  document.getElementById('tau-bar').style.width = Math.min(res.tau / 2 * 100, 100) + '%';
+
+  const smcClasses = [
+    [0.10, 'Very dry — near wilting point'],
+    [0.20, 'Dry soil'],
+    [0.30, 'Moderate moisture'],
+    [0.40, 'Near field capacity'],
+    [Infinity, 'Near saturation']
+  ];
+  document.getElementById('smc-class').textContent = smcClasses.find(([t]) => res.smc < t)[1];
+
+  const tauClasses = [
+    [0.05, 'Bare soil'],
+    [0.20, 'Sparse / low vegetation'],
+    [0.50, 'Moderate canopy'],
+    [1.00, 'Dense canopy'],
+    [Infinity, 'Very dense / saturating']
+  ];
+  document.getElementById('tau-class').textContent = tauClasses.find(([t]) => res.tau < t)[1];
+
+  const modeLabel = retrievalMode === 'smc' ? 'SMC only  (τ = ' + f(fixedTau,2) + ' fixed)'
+                  : retrievalMode === 'tau' ? 'τ only  (SMC = ' + f(fixedSmc,3) + ' fixed)'
+                  : 'Simultaneous  (SMC + τ)';
+
+  const sb = document.getElementById('status-bar');
+  const st = document.getElementById('status-text');
+  if (res.residual < 2) {
+    sb.className = 'status-bar ok';
+    st.textContent = 'Converged  ·  ' + modeLabel + '  ·  residual = ' + f(res.residual, 2) + ' K';
+  } else if (res.residual < 5) {
+    sb.className = 'status-bar warn';
+    st.textContent = 'Moderate residual ' + f(res.residual, 2) + ' K  ·  ' + modeLabel;
+  } else {
+    sb.className = 'status-bar err';
+    st.textContent = 'High residual ' + f(res.residual, 2) + ' K  ·  ' + modeLabel + '  ·  check inputs';
+  }
+}
+
+['tbv','tbh','ts','tc','tsky','theta','hrms','nexp','qpar','omega','tau0','smc0','fixed-tau','fixed-smc']
+  .forEach(id => document.getElementById(id).addEventListener('input', update));
+
+update();
+
+/* =====================================================================
+   CALIBRATION VIEW
+===================================================================== */
+
+let calibRows = [
+  { tbv: 205, tbh: 165, ts: 18, tc: 16, theta: 40, smc: 0.32 },
+  { tbv: 212, tbh: 175, ts: 22, tc: 21, theta: 40, smc: 0.25 },
+  { tbv: 220, tbh: 185, ts: 25, tc: 24, theta: 40, smc: 0.18 },
+  { tbv: 235, tbh: 205, ts: 32, tc: 30, theta: 40, smc: 0.08 }
+];
+
+function renderCalibTable() {
+  const tbody = document.getElementById('cal-tbody');
+  tbody.innerHTML = '';
+  calibRows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    const fields = ['tbv','tbh','ts','tc','theta','smc'];
+    let cells = `<td>${i + 1}</td>`;
+    fields.forEach(fld => {
+      const step = fld === 'smc' ? '0.01' : (fld === 'theta' ? '1' : '0.5');
+      cells += `<td><input type="number" step="${step}" value="${row[fld]}" data-row="${i}" data-field="${fld}"></td>`;
+    });
+    cells += `<td><button class="row-remove" data-remove="${i}">×</button></td>`;
+    tr.innerHTML = cells;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input[type=number]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const r = +e.target.dataset.row, fld = e.target.dataset.field;
+      calibRows[r][fld] = +e.target.value;
+    });
+  });
+  tbody.querySelectorAll('.row-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      calibRows.splice(+e.target.dataset.remove, 1);
+      renderCalibTable();
+    });
+  });
+}
+renderCalibTable();
+
+document.getElementById('cal-add-row').addEventListener('click', () => {
+  const last = calibRows[calibRows.length - 1] || { tbv: 210, tbh: 175, ts: 25, tc: 24, theta: 40, smc: 0.20 };
+  calibRows.push({ ...last });
+  renderCalibTable();
+});
+
+/* --- Excel / CSV import --- */
+document.getElementById('cal-import-btn').addEventListener('click', () => {
+  document.getElementById('cal-import-file').click();
+});
+
+document.getElementById('cal-import-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  const statusEl = document.getElementById('cal-import-status');
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+      if (rows.length < 2) {
+        statusEl.className = 'err';
+        statusEl.textContent = 'No data rows found in the first sheet.';
+        return;
+      }
+
+      const norm = (h) => String(h == null ? '' : h).toLowerCase().replace(/[^a-z]/g, '');
+      const headers = rows[0].map(norm);
+      const idx = {};
+      headers.forEach((h, i) => {
+        if (idx.tbv === undefined && (h.includes('tbv') || (h.includes('tb') && h.includes('vert')))) idx.tbv = i;
+        else if (idx.tbh === undefined && (h.includes('tbh') || (h.includes('tb') && h.includes('horiz')))) idx.tbh = i;
+        else if (idx.ts === undefined && (h === 'ts' || h.includes('soiltemp'))) idx.ts = i;
+        else if (idx.tc === undefined && (h === 'tc' || h.includes('canopytemp'))) idx.tc = i;
+        else if (idx.theta === undefined && (h.includes('theta') || h.includes('angle') || h.includes('incidence'))) idx.theta = i;
+        else if (idx.smc === undefined && (h.includes('smc') || h.includes('moisture') || h.includes('vwc'))) idx.smc = i;
+      });
+
+      const required = ['tbv', 'tbh', 'smc'];
+      const missing = required.filter(k => idx[k] === undefined);
+      if (missing.length) {
+        statusEl.className = 'err';
+        statusEl.textContent = 'Could not find required column(s): ' + missing.join(', ') +
+          '. Expected headers like Tb_V, Tb_H, Ts, Tc, theta, SMC.';
+        e.target.value = '';
+        return;
+      }
+
+      const newRows = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.every(v => v === null || v === '')) continue;
+        newRows.push({
+          tbv:   Number(row[idx.tbv]),
+          tbh:   Number(row[idx.tbh]),
+          ts:    idx.ts    !== undefined ? Number(row[idx.ts])    : 25,
+          tc:    idx.tc    !== undefined ? Number(row[idx.tc])    : 25,
+          theta: idx.theta !== undefined ? Number(row[idx.theta]) : 40,
+          smc:   Number(row[idx.smc])
+        });
+      }
+
+      if (!newRows.length) {
+        statusEl.className = 'err';
+        statusEl.textContent = 'No usable data rows found.';
+        e.target.value = '';
+        return;
+      }
+
+      calibRows = newRows;
+      renderCalibTable();
+      const note = [];
+      if (idx.ts === undefined) note.push('Ts defaulted to 25 °C');
+      if (idx.tc === undefined) note.push('Tc defaulted to 25 °C');
+      if (idx.theta === undefined) note.push('θ defaulted to 40°');
+      statusEl.className = 'ok';
+      statusEl.textContent = `Imported ${newRows.length} observation(s) from "${file.name}"` +
+        (note.length ? ' — ' + note.join(', ') + '.' : '.');
+    } catch (err) {
+      statusEl.className = 'err';
+      statusEl.textContent = 'Could not read file: ' + err.message;
+    }
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+/* --- per-row tau solver (golden section refine on top of coarse grid) --- */
+function solveTauRow(tbvObs, tbhObs, smc, omega, TsK, TcK, Tsky, theta, hrms, nexp, Q) {
+  const costAt = (t) => {
+    const fr = forward(smc, t, omega, TsK, TcK, Tsky, theta, hrms, nexp, Q);
+    return Math.pow(fr.TbV - tbvObs, 2) + Math.pow(fr.TbH - tbhObs, 2);
+  };
+  let bestT = 0, bestC = Infinity;
+  for (let t = 0; t <= 3.0001; t += 0.02) {
+    const c = costAt(t);
+    if (c < bestC) { bestC = c; bestT = t; }
+  }
+  let lo = Math.max(0, bestT - 0.03), hi = Math.min(3, bestT + 0.03);
+  const gr = (Math.sqrt(5) - 1) / 2;
+  let c1 = hi - gr * (hi - lo), c2 = lo + gr * (hi - lo);
+  let f1 = costAt(c1), f2 = costAt(c2);
+  for (let i = 0; i < 40; i++) {
+    if (f1 < f2) { hi = c2; c2 = c1; f2 = f1; c1 = hi - gr * (hi - lo); f1 = costAt(c1); }
+    else { lo = c1; c1 = c2; f1 = f2; c2 = lo + gr * (hi - lo); f2 = costAt(c2); }
+  }
+  const tau = (lo + hi) / 2;
+  const fr = forward(smc, tau, omega, TsK, TcK, Tsky, theta, hrms, nexp, Q);
+  return { tau, cost: Math.pow(fr.TbV - tbvObs, 2) + Math.pow(fr.TbH - tbhObs, 2), fwd: fr };
+}
+
+const CAL_BOUNDS = { hrms: [0, 0.05], nexp: [0, 2], Q: [0, 0.2], omega: [0, 0.2] };
+const CAL_STEP   = { hrms: 0.005, nexp: 0.2, Q: 0.02, omega: 0.02 };
+
+function calibCost(paramsArr, freeKeys, fixedVals, rows, Tsky) {
+  const p = { ...fixedVals };
+  freeKeys.forEach((k, i) => p[k] = paramsArr[i]);
+  for (const k of freeKeys) {
+    const [lo, hi] = CAL_BOUNDS[k];
+    if (p[k] < lo || p[k] > hi) return 1e6;
+  }
+  let total = 0;
+  for (const row of rows) {
+    const res = solveTauRow(row.tbv, row.tbh, row.smc, p.omega,
+                             row.ts + 273.15, row.tc + 273.15, Tsky, row.theta,
+                             p.hrms, p.nexp, p.Q);
+    total += res.cost;
+  }
+  return total;
+}
+
+/* generic Nelder-Mead, n dimensions */
+function nelderMead(fn, x0, step, maxIter = 300) {
+  const n = x0.length;
+  if (n === 0) return x0;
+  let simplex = [x0.slice()];
+  for (let i = 0; i < n; i++) {
+    const p = x0.slice();
+    p[i] += step[i];
+    simplex.push(p);
+  }
+  for (let iter = 0; iter < maxIter; iter++) {
+    simplex.sort((a, b) => fn(a) - fn(b));
+    const best = simplex[0], worst = simplex[n];
+    const centroid = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) centroid[j] += simplex[i][j];
+    for (let j = 0; j < n; j++) centroid[j] /= n;
+    const refl = centroid.map((c, j) => c + (c - worst[j]));
+    const fRefl = fn(refl);
+    if (fRefl < fn(best)) {
+      const exp = centroid.map((c, j) => c + 2 * (c - worst[j]));
+      simplex[n] = fn(exp) < fRefl ? exp : refl;
+    } else if (fRefl < fn(simplex[n - 1])) {
+      simplex[n] = refl;
+    } else {
+      const con = centroid.map((c, j) => c + 0.5 * (worst[j] - c));
+      if (fn(con) < fn(worst)) {
+        simplex[n] = con;
+      } else {
+        for (let i = 1; i <= n; i++) simplex[i] = simplex[i].map((v, j) => best[j] + 0.5 * (v - best[j]));
+      }
+    }
+  }
+  simplex.sort((a, b) => fn(a) - fn(b));
+  return simplex[0];
+}
+
+document.getElementById('cal-run').addEventListener('click', () => {
+  const Tsky = +document.getElementById('cal-tsky').value;
+
+  const keys = ['hrms','nexp','Q','omega'];
+  const freeKeys = [], fixedVals = {}, x0 = [], step = [];
+  keys.forEach(k => {
+    const checked = document.getElementById('cal-chk-' + k).checked;
+    const val = +document.getElementById('cal-val-' + k).value;
+    if (checked) { freeKeys.push(k); x0.push(val); step.push(CAL_STEP[k]); }
+    else fixedVals[k] = val;
+  });
+
+  let bestParams;
+  if (freeKeys.length > 0) {
+    bestParams = nelderMead(arr => calibCost(arr, freeKeys, fixedVals, calibRows, Tsky), x0, step, 400);
+  } else {
+    bestParams = [];
+  }
+  const p = { ...fixedVals };
+  freeKeys.forEach((k, i) => p[k] = bestParams[i]);
+
+  // per-row results
+  let sumSq = 0, nObs = calibRows.length;
+  const tbody = document.getElementById('cal-results-tbody');
+  tbody.innerHTML = '';
+  calibRows.forEach((row, i) => {
+    const r = solveTauRow(row.tbv, row.tbh, row.smc, p.omega,
+                           row.ts + 273.15, row.tc + 273.15, Tsky, row.theta,
+                           p.hrms, p.nexp, p.Q);
+    sumSq += r.cost;
+    const dTbV = r.fwd.TbV - row.tbv;
+    const dTbH = r.fwd.TbH - row.tbh;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td>${f(row.smc,3)}</td><td>${f(r.tau,3)}</td>
+      <td>${f(row.tbv,1)}</td><td>${f(r.fwd.TbV,1)}</td><td>${f(dTbV,2)}</td>
+      <td>${f(row.tbh,1)}</td><td>${f(r.fwd.TbH,1)}</td><td>${f(dTbH,2)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const rmse = Math.sqrt(sumSq / (2 * nObs));
+
+  document.getElementById('cal-out-hrms').textContent  = f(p.hrms, 3);
+  document.getElementById('cal-out-nexp').textContent  = f(p.nexp, 2);
+  document.getElementById('cal-out-Q').textContent     = f(p.Q, 3);
+  document.getElementById('cal-out-omega').textContent = f(p.omega, 3);
+
+  const sb = document.getElementById('cal-status-bar');
+  const st = document.getElementById('cal-status-text');
+  const fittedNames = freeKeys.length ? freeKeys.join(', ') : 'none (all fixed)';
+  if (rmse < 2) {
+    sb.className = 'status-bar ok';
+    st.textContent = `Converged · RMSE = ${f(rmse,2)} K over ${nObs} observations · fitted: ${fittedNames}`;
+  } else if (rmse < 5) {
+    sb.className = 'status-bar warn';
+    st.textContent = `Moderate fit · RMSE = ${f(rmse,2)} K over ${nObs} observations · fitted: ${fittedNames}`;
+  } else {
+    sb.className = 'status-bar err';
+    st.textContent = `Poor fit · RMSE = ${f(rmse,2)} K over ${nObs} observations · check data / bounds`;
+  }
+
+  document.getElementById('cal-results').classList.add('show');
+  document.getElementById('cal-apply').disabled = false;
+
+  window._calibratedParams = p;
+});
+
+document.getElementById('cal-apply').addEventListener('click', () => {
+  const p = window._calibratedParams;
+  if (!p) return;
+  document.getElementById('hrms').value  = p.hrms;
+  document.getElementById('nexp').value  = p.nexp;
+  document.getElementById('qpar').value  = p.Q;
+  document.getElementById('omega').value = p.omega;
+  update();
+  document.querySelector('.tab-btn[data-view="forward"]').click();
+});
+</script>
+</body>
+</html>
